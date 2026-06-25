@@ -43,11 +43,15 @@ func _on_spawn_timer_timeout():
 	obj.position.x = randf_range(50, get_viewport_rect().size.x - 50)
 	obj.position.y = -30
 	
-	# Aplicar multiplicador de velocidad ANTES de añadir al árbol
-	obj.speed = 200 * speed_multiplier
+	var current_speed = base_speed * speed_multiplier
+	obj.speed = current_speed
+	
+	print("DEBUG SPAWN: ANTES de add_child, obj.speed = %.2f" % obj.speed)
 	
 	obj.area_entered.connect(_on_object_caught.bind(obj))
 	add_child(obj)
+	
+	print("DEBUG SPAWN: DESPUÉS de add_child, obj.speed = %.2f" % obj.speed)
 
 func _process(_delta):
 	# Verificar objetos que pasaron la pantalla
