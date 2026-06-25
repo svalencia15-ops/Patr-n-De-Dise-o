@@ -35,18 +35,27 @@ func on_game_event(event_type: String, data: Dictionary):
 			_on_lives_changed(data)
 		"score_changed":
 			_on_score_changed(data)
+		"speed_changed":
+			_on_speed_changed(data)
 
 func _on_spawn_timer_timeout():
 	var obj = FallingObject.instantiate()
 	obj.position.x = randf_range(50, get_viewport_rect().size.x - 50)
 	obj.position.y = -30
 	
-	# Aplicar multiplicador de velocidad
-	obj.speed = obj.speed * speed_multiplier if obj.has_meta("base_speed") else obj.speed
+	# Aplicar multiplicador de velocidad ANTES de añadir al árbol
+	obj.speed = 200 * speed_multiplier
 	
 	obj.area_entered.connect(_on_object_caught.bind(obj))
-	obj.tree_exiting.connect(_on_object_missed.bind(obj))
 	add_child(obj)
+
+func _process(_delta):
+	# Verificar objetos que pasaron la pantalla
+	for child in get_children():
+		if child.is_in_group("falling_object"):
+			if child.position.y > get_viewport_rect().size.y:
+				_on_object_missed(child)
+				child.queue_free()
 
 func _on_object_caught(area, obj):
 	if area == $Player:
@@ -57,7 +66,7 @@ func _on_object_caught(area, obj):
 		if score % 20 == 0 and score > last_speed_increase:
 			speed_multiplier *= 1.05  # Aumentar 5%
 			last_speed_increase = score
-			print("Velocidad aumentada: %.2f%%" % ((speed_multiplier - 1) * 100))
+			print("Velocidad aumentada: %.2f%% - Multiplicador: %.2f" % [5.0, speed_multiplier])
 			# Notificar evento
 			notify_observers("speed_changed", {"multiplier": speed_multiplier, "score": score})
 		
@@ -66,15 +75,15 @@ func _on_object_caught(area, obj):
 		$HUD/ScoreLabel.text = "Score: %d" % score
 
 func _on_object_missed(obj):
-	if obj.position.y > get_viewport_rect().size.y:
-		lives -= 1
-		
-		# Notificar cambio de vidas
-		notify_observers("lives_changed", {"lives": lives, "reason": "missed"})
-		$HUD/LivesLabel.text = "Lives: %d" % lives
-		
-		if lives <= 0:
-			_game_over()
+	lives -= 1
+	print("¡Bola perdida! Vidas restantes: %d" % lives)
+	
+	# Notificar cambio de vidas
+	notify_observers("lives_changed", {"lives": lives, "reason": "missed"})
+	$HUD/LivesLabel.text = "Lives: %d" % lives
+	
+	if lives <= 0:
+		_game_over()
 
 # Manejadores de eventos del observador
 func _on_lives_changed(data: Dictionary):
@@ -85,7 +94,9 @@ func _on_lives_changed(data: Dictionary):
 
 func _on_score_changed(data: Dictionary):
 	print("Puntuación: %d" % data.score)
-	# Aquí puedes añadir lógica adicional según la puntuación
+
+func _on_speed_changed(data: Dictionary):
+	print("Velocidad multiplicada por: %.2f" % data.multiplier)
 
 func _game_over():
 	$SpawnTimer.stop()
